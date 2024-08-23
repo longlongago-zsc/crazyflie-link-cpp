@@ -1,6 +1,6 @@
 # How to install
 
-1. 'git clone https://github.com/longlongago-zsc/crazyflie-link-cpp.git'
+1. `git clone https://github.com/longlongago-zsc/crazyflie-link-cpp.git`
 
 ## How to compile 
 1. `mkdir build && cd build`
