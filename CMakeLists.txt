@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.5)
 project(crazyflie-link-cpp)
 
 # define some options
-option(BUILD_PYTHON_BINDINGS "Generate Python Bindings" ON)
+option(BUILD_PYTHON_BINDINGS "Generate Python Bindings" OFF)
 option(BUILD_CPP_EXAMPLES "Generate C++ Examples" ON)
 
 # Enable C++14 and warnings
@@ -23,7 +23,7 @@ endif()
 
 
 # dependencies
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/build)
+# set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/build)
 
 include_directories(
   include
