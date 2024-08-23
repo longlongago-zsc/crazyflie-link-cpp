@@ -21,10 +21,6 @@ else()
   add_compile_options(-Wall -Wextra -Werror)
 endif()
 
-
-# dependencies
-# set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/build)
-
 include_directories(
   include
   ../boost_1_80_0
@@ -102,19 +98,5 @@ if (BUILD_CPP_EXAMPLES)
   )
   target_link_libraries(example_udpTest
     crazyflieLinkCpp
-  )
-endif()
-
-if (BUILD_PYTHON_BINDINGS)
-  # Python bindings
-  add_subdirectory(pybind11)
-
-  pybind11_add_module(cflinkcpp
-    src/python_bindings.cpp
-  )
-
-  target_link_libraries(cflinkcpp
-    PRIVATE
-      crazyflieLinkCpp
   )
 endif()
