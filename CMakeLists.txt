@@ -52,6 +52,7 @@ endif()
 include_directories(
   include
   ${LIBUSB_INCLUDE_DIR}
+  ../boost_1_80_0
 )
 
 # C++ library
@@ -64,6 +65,8 @@ add_library(crazyflieLinkCpp
   src/CrazyradioThread.cpp
   src/CrazyflieUSB.cpp
   src/CrazyflieUSBThread.cpp
+  src/CrazyfileUdp.cpp
+  src/CrazyfileUdpThread.cpp
   src/Version.cpp
 )
 
@@ -124,6 +127,14 @@ if (BUILD_CPP_EXAMPLES)
     examples/broadcast.cpp
   )
   target_link_libraries(example_broadcast
+    crazyflieLinkCpp
+  )
+
+   # example_udpTest
+  add_executable(example_udpTest
+    examples/udpTest.cpp
+  )
+  target_link_libraries(example_udpTest
     crazyflieLinkCpp
   )
 endif()

@@ -9,6 +9,7 @@
 
 // #include "native_link/Connection.h"
 #include "ConnectionImpl.h"
+#include "CrazyfileUdp.h"
 
 namespace bitcraze {
 namespace crazyflieLinkCpp {
