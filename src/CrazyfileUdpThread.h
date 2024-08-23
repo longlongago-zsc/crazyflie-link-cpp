@@ -11,12 +11,12 @@ namespace bitcraze {
 namespace crazyflieLinkCpp {
 
 // forward declaration
-class USBManager;
+class UdpManager;
 class ConnectionImpl;
 
 class CrazyfileUdpThread
 {
-    friend class USBManager;
+    friend class UdpManager;
 public:
     explicit CrazyfileUdpThread(const IP& ip);
     explicit CrazyfileUdpThread(CrazyfileUdpThread&& other);

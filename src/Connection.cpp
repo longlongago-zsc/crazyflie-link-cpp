@@ -5,10 +5,7 @@
 #include "crazyflieLinkCpp/Connection.h"
 #include "ConnectionImpl.h"
 
-#include "USBManager.h"
-#include "Crazyradio.h"
-
-#include <libusb.h>
+#include "UdpManager.h"
 
 namespace bitcraze {
 namespace crazyflieLinkCpp {
@@ -48,101 +45,13 @@ Connection::Connection(const std::string &uri)
       impl_->devid_ = -1;
       std::cout << impl_->uri_ << std::endl;
   }
-  else if (match[2].matched) {
-    // usb://
-    impl_->devid_ = std::stoi(match[2].str());
-
-    if (impl_->devid_ < 0 || impl_->devid_ >= (int)USBManager::get().numCrazyfliesOverUSB()) {
+  else
+  {
       std::stringstream sstr;
-      sstr << "No Crazyflie with id=" << impl_->devid_ << " found. ";
-      sstr << "There are " << USBManager::get().numCrazyfliesOverUSB() << " Crazyflies connected.";
+      sstr << "Invalid uri (" << uri << ")!";
       throw std::runtime_error(sstr.str());
-    }
-    impl_->isRadio_ = false;
-  } else {
-    // radio
-    uint8_t devIdMatchIndex = 3;
-    uint8_t channelMatchIndex = 4;
-    uint8_t datarateMatchIndex = 5;
-
-    // broadcast
-    if (match[8].matched) {
-        impl_->address_ = BROADCAST_ADDRESS;
-        impl_->useSafelink_ = false;
-        impl_->useAutoPing_ = false;
-        impl_->useAckFilter_ = false;
-        impl_->broadcast_ = true;
-        devIdMatchIndex = 9;
-        channelMatchIndex = 10;
-        datarateMatchIndex = 11;
-    }
-    else {
-        // Address is represented by 40 bytes => 10 hex chars max
-        if (match[6].str().length() > 10) {
-            std::stringstream sstr;
-            sstr << "Invalid uri (" << uri << ")!";
-            throw std::runtime_error(sstr.str());
-        }
-        impl_->address_ = std::stoull(match[6].str(), nullptr, 16);
-
-        // parse flags
-        impl_->useSafelink_ = true;
-        impl_->useAutoPing_ = true;
-        impl_->useAckFilter_ = true;
-        impl_->broadcast_ = false;
-
-        if (match[7].length() > 0) {
-            std::stringstream sstr(match[7].str().substr(1));
-            std::string keyvalue;
-            const std::regex params_regex("(safelink|autoping|ackfilter)=([0|1])");
-            while (getline(sstr, keyvalue, '&')) {
-                std::smatch match;
-                if (!std::regex_match(keyvalue, match, params_regex)) {
-                    std::stringstream sstr;
-                    sstr << "Invalid uri (" << uri << ")! ";
-                    sstr << "Unknown " << keyvalue << ".";
-                    throw std::runtime_error(sstr.str());
-                }
-
-                if (match[1].str() == "safelink" && match[2].str() == "0") {
-                    impl_->useSafelink_ = false;
-                }
-                if (match[1].str() == "autoping" && match[2].str() == "0") {
-                    impl_->useAutoPing_ = false;
-                }
-                if (match[1].str() == "ackfilter" && match[2].str() == "0") {
-                    impl_->useAckFilter_ = false;
-                }
-            }
-        }
-    }
-
-    if (match[devIdMatchIndex].str() == "*") {
-        impl_->devid_ = -1;
-    }
-    else {
-        impl_->devid_ = std::stoi(match[devIdMatchIndex].str());
-    }
-
-    impl_->channel_ = std::stoi(match[channelMatchIndex].str());
-    if (match[datarateMatchIndex].str() == "250K") {
-        impl_->datarate_ = Crazyradio::Datarate_250KPS;
-    }
-    else if (match[datarateMatchIndex].str() == "1M") {
-        impl_->datarate_ = Crazyradio::Datarate_1MPS;
-    }
-    else if (match[datarateMatchIndex].str() == "2M") {
-        impl_->datarate_ = Crazyradio::Datarate_2MPS;
-    }
-
-    impl_->safelinkInitialized_ = false;
-    impl_->safelinkUp_ = false;
-    impl_->safelinkDown_ = false;
-
-    impl_->isRadio_ = true;
   }
-
-  USBManager::get().addConnection(impl_);
+  UdpManager::get().addConnection(impl_);
 }
 
 Connection::~Connection()
@@ -154,71 +63,21 @@ void Connection::close()
 {
     if (impl_->isUdp_)
     {
-        USBManager::get().removeConnection(impl_);
+        UdpManager::get().removeConnection(impl_);
     }
   else if (impl_->devid_ >= 0) {
-    USBManager::get().removeConnection(impl_);
+    UdpManager::get().removeConnection(impl_);
   }
 }
 
 std::vector<std::string> Connection::scan(uint64_t address)
 {
-  USBManager::get().updateDevices();
+  UdpManager::get().updateDevices();
 
   std::vector<std::string> result;
-
-  // Crazyflies over USB
-  for (size_t i = 0; i < USBManager::get().numCrazyfliesOverUSB(); ++i) {
-    result.push_back("usb://" + std::to_string(i));
-  }
-
-  // Crazyflies over radio
-  if (USBManager::get().numCrazyradios()) {
-    std::stringstream sstr;
-    sstr << std::hex << std::uppercase << address;
-    std::string a = sstr.str();
-
-    std::vector<std::future<std::string>> futures;
-    for (auto datarate : {"250K", "1M", "2M"})
-    {
-      for (int channel = 0; channel < 125; ++channel) {
-        std::string uri = "radio://*/" + std::to_string(channel) + "/" + datarate + "/" + a;
-
-        futures.emplace_back(std::async(std::launch::async,
-        [uri]() {
-          try {
-            Connection con(uri);
-            bool success;
-            while (true)
-            {
-              if (con.statistics().sent_count >= 1)
-              {
-                success = con.statistics().ack_count >= 1;
-                break;
-              }
-              std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            };
-            if (success) {
-              return uri;
-            }
-          } catch(...) {
-          }
-          return std::string();
-        }));
-      }
-    }
-
-    for (auto& future : futures) {
-      auto uri = future.get();
-      if (!uri.empty())
-      {
-        result.push_back(uri);
-      }
-    }
-  }
   // Crazyflies over UDP
-  if (USBManager::get().numCrazyfliesOverUdp() > 0) {
-      auto it = USBManager::get().udpList();
+  if (UdpManager::get().numCrazyfliesOverUdp() > 0) {
+      auto it = UdpManager::get().udpList();
       result.insert(result.begin(), it.begin(), it.end());
   }
   return result;
@@ -227,40 +86,6 @@ std::vector<std::string> Connection::scan(uint64_t address)
 std::vector<std::string> Connection::scan_selected(const std::vector<std::string> &uris)
 {
   std::vector<std::string> result;
-  std::vector<std::future<std::string>> futures;
-  for (const auto& uri : uris) {
-    futures.emplace_back(std::async(std::launch::async,
-      [uri]() {
-        try
-        {
-          Connection con(uri + "?safelink=0&autoping=0&ackfilter=0");
-          const uint8_t check[] = {0xFF, 0xFF, 0xFF};
-          Packet p(check, sizeof(check));
-          con.send(p);
-          do {
-            Packet p_recv = con.recv(10);
-            if (p_recv)
-            {
-              return uri;
-            }
-          } while (con.statistics().sent_count == 0);
-        }
-        catch (const std::runtime_error& e)
-        {
-          std::cout << "Error during scan: " << e.what() << std::endl;
-        }
-        return std::string();
-      }));
-  }
-
-  for (auto &future : futures)
-  {
-    auto uri = future.get();
-    if (!uri.empty())
-    {
-      result.push_back(uri);
-    }
-  }
   result.push_back("udp://192.168.43.42");
   return result;
 }

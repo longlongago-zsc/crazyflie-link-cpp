@@ -7,8 +7,6 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "Crazyradio.h"
-#include "CrazyflieUSB.h"
 #include "crazyflieLinkCpp/Connection.h"
 
 namespace bitcraze {
@@ -26,7 +24,6 @@ public:
 
     // Radio related
     int channel_;
-    Crazyradio::Datarate datarate_;
     uint64_t address_;
     bool useSafelink_;
     bool useAutoPing_;
