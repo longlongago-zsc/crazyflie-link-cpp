@@ -1,13 +1,12 @@
 #pragma once
 
-#include <atomic>
 #include <string>
 #include <cstdint>
 #include <cmath>
 #include <ostream>
 #include <vector>
 #include <memory>
-#include <limits>
+
 #include "Packet.hpp"
 
 #define BROADCAST_ADDRESS 0xFFE7E7E7E7
@@ -27,26 +26,10 @@ public:
     {
       reset();
     }
-
-    Statistics(const Statistics& other)
-    {
-      *this = other;
-    }
-
-    Statistics& operator=(const Statistics& other)
-    {
-      std::atomic_store(&sent_count, std::atomic_load(&other.sent_count));
-      std::atomic_store(&sent_ping_count, std::atomic_load(&other.sent_ping_count));
-      std::atomic_store(&receive_count, std::atomic_load(&other.receive_count));
-      std::atomic_store(&enqueued_count, std::atomic_load(&other.enqueued_count));
-      std::atomic_store(&ack_count, std::atomic_load(&other.ack_count));      
-      return *this;
-    }
     
     void reset()
     {
       sent_count = 0;
-      sent_ping_count = 0;
       receive_count = 0;
       enqueued_count = 0;
       ack_count = 0;
@@ -57,7 +40,6 @@ public:
     {
       out << "Statistics(";
       out << "sent_count=" << s.sent_count;
-      out << "sent_ping_count=" << s.sent_ping_count;
       out << ",receive_count=" << s.receive_count;
       out << ",enqueued_count=" << s.enqueued_count;
       out << ",ack_count=" << s.ack_count;
@@ -67,11 +49,10 @@ public:
       return out;
     }
 
-    std::atomic_size_t sent_count;
-    std::atomic_size_t sent_ping_count;
-    std::atomic_size_t receive_count;
-    std::atomic_size_t enqueued_count;
-    std::atomic_size_t ack_count;
+    size_t sent_count;
+    size_t receive_count;
+    size_t enqueued_count;
+    size_t ack_count;
     // uint8_t rssi_latest;
   };
 
@@ -94,19 +75,13 @@ public:
 
   void send(const Packet& p);
 
-  // Updated receive function that can be non-blocking, fully blocking, or use a timeout
-  static constexpr unsigned int TimeoutNone = 0;
-  static constexpr unsigned int TimeoutBlock = std::numeric_limits<unsigned int>::max();
-  Packet receive(unsigned int timeout_in_ms);
-
-  // Deprecated receive that can be fully blocking (timeout_in_ms == 0), or use a timeout
   Packet recv(unsigned int timeout_in_ms);
 
   void close();
 
   const std::string& uri() const;
 
-  const Connection::Statistics statistics() const;
+  Connection::Statistics statistics();
 
   friend std::ostream& operator<<(std::ostream& out, const Connection& p);
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <utility>
 
 #include <libusb.h>
 
@@ -22,12 +21,6 @@ protected:
         uint16_t index,
         const unsigned char* data,
         uint16_t length);
-
-public:
-  const std::pair<int, int> version() const
-  {
-    return std::make_pair(versionMajor_, versionMinor_);
-  }
 
 protected:
   libusb_device* dev_;

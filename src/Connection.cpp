@@ -84,7 +84,7 @@ Connection::Connection(const std::string &uri)
         if (match[7].length() > 0) {
             std::stringstream sstr(match[7].str().substr(1));
             std::string keyvalue;
-            const std::regex params_regex("(safelink|autoping|ackfilter|broadcast)=([0|1])");
+            const std::regex params_regex("(safelink|autoping|ackfilter)=([0|1])");
             while (getline(sstr, keyvalue, '&')) {
                 std::smatch match;
                 if (!std::regex_match(keyvalue, match, params_regex)) {
@@ -102,9 +102,6 @@ Connection::Connection(const std::string &uri)
                 }
                 if (match[1].str() == "ackfilter" && match[2].str() == "0") {
                     impl_->useAckFilter_ = false;
-                }
-                if (match[1].str() == "broadcast" && match[2].str() == "1") {
-                    impl_->broadcast_ = true;
                 }
             }
         }
@@ -262,15 +259,13 @@ void Connection::send(const Packet& p)
   ++impl_->statistics_.enqueued_count;
 }
 
-Packet Connection::receive(unsigned int timeout_in_ms)
+Packet Connection::recv(unsigned int timeout_in_ms)
 {
   std::unique_lock<std::mutex> lk(impl_->queue_recv_mutex_);
   if (!impl_->runtime_error_.empty()) {
     throw std::runtime_error(impl_->runtime_error_);
   }
-  if (timeout_in_ms == Connection::TimeoutNone) {
-    /* nothing needs to be done */
-  } else if (timeout_in_ms == Connection::TimeoutBlock) {
+  if (timeout_in_ms == 0) {
     impl_->queue_recv_cv_.wait(lk, [this] { return !impl_->queue_recv_.empty(); });
   } else {
     std::chrono::milliseconds duration(timeout_in_ms);
@@ -287,12 +282,6 @@ Packet Connection::receive(unsigned int timeout_in_ms)
   return result;
 }
 
-Packet Connection::recv(unsigned int timeout_in_ms)
-{
-  unsigned int timeout_in_ms_new = timeout_in_ms == 0 ? Connection::TimeoutBlock : timeout_in_ms;
-  return receive(timeout_in_ms_new);
-}
-
 std::ostream& operator<<(std::ostream& out, const Connection& p)
 {
   out <<"Connection(" << p.impl_->uri_;
@@ -305,7 +294,7 @@ const std::string& Connection::uri() const
   return impl_->uri_;
 }
 
-const Connection::Statistics Connection::statistics() const
+Connection::Statistics Connection::statistics()
 {
   if (!impl_->runtime_error_.empty()) {
     throw std::runtime_error(impl_->runtime_error_);

@@ -10,9 +10,6 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compile static libraries with hidden visibility
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-
 if (MSVC)
   # Avoid min/max macros in Windows.h (pulled in from libusb)
   add_definitions(-DNOMINMAX)
@@ -78,8 +75,8 @@ add_library(crazyflieLinkCpp
 
 # Apple macOS libraries
 if (APPLE)
-  set(CMAKE_EXE_LINKER_FLAGS "-lobjc -framework IOKit -framework CoreFoundation -framework Security")
-  set(CMAKE_MODULE_LINKER_FLAGS "-lobjc -framework IOKit -framework CoreFoundation -framework Security")
+  set(CMAKE_EXE_LINKER_FLAGS "-lobjc -framework IOKit -framework CoreFoundation")
+  set(CMAKE_MODULE_LINKER_FLAGS "-lobjc -framework IOKit -framework CoreFoundation")
 endif()
 
 # Link pthread on Linux and Mac only
@@ -129,19 +126,11 @@ if (BUILD_CPP_EXAMPLES)
   target_link_libraries(example_broadcast
     crazyflieLinkCpp
   )
-
-  # example_broadcast_and_console
-  add_executable(example_broadcast_and_console
-    examples/broadcast_and_console.cpp
-  )
-  target_link_libraries(example_broadcast_and_console
-    crazyflieLinkCpp
-  )
 endif()
 
 if (BUILD_PYTHON_BINDINGS)
   # Python bindings
-  add_subdirectory(pybind11 EXCLUDE_FROM_ALL)
+  add_subdirectory(pybind11)
 
   pybind11_add_module(cflinkcpp
     src/python_bindings.cpp
