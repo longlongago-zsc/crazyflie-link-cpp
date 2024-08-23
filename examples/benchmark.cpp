@@ -10,6 +10,8 @@
 
 using namespace bitcraze::crazyflieLinkCpp;
 
+#define __DEBUG__  std::cout /*<<__FILE__*/<< " " << __FUNCTION__<< " "<<__LINE__<< " "
+
 class Benchmark
 {
 public:
@@ -28,7 +30,12 @@ public:
             Packet p = con.recv(100);
             if (!p)
             {
+                __DEBUG__ << "no recv data" << std::endl;
                 break;
+            }
+            else
+            {
+                __DEBUG__ << "recv packet:" << p << std::endl;
             }
         }
 
@@ -45,6 +52,7 @@ public:
         {
             std::memcpy(p.payload(), &i, sizeof(i));
             auto start = std::chrono::steady_clock::now();
+            __DEBUG__ << p << std::endl;
             con.send(p);
             Packet p_recv = con.recv(0);
             auto end = std::chrono::steady_clock::now();
@@ -60,7 +68,7 @@ public:
             }
             latency_sum += diff.count();
             latency_min = std::min(diff.count(), latency_min);
-            // std::cout << p_recv << " " << diff.count() << std::endl;
+            std::cout << p_recv << " " << diff.count() << std::endl;
         }
         latency_avg = latency_sum / (double)count;
 
@@ -119,7 +127,7 @@ private:
 int main()
 {
     // std::vector<std::string> uris({"radio://*/80/2M/E7E7E7E7E7", "radio://*/90/2M/E7E7E7E7E7"});
-    std::vector<std::string> uris({"radio://*/80/2M/E7E7E7E7E7"});
+    std::vector<std::string> uris({"udp://192.168.43.42"});//radio://*/80/2M/E7E7E7E7E7
 
     std::vector<Benchmark> benchmarks;
     benchmarks.reserve(uris.size());

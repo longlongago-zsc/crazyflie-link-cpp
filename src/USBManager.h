@@ -8,6 +8,7 @@
 
 #include "CrazyradioThread.h"
 #include "CrazyflieUSBThread.h"
+#include "CrazyfileUdpThread.h"
 
 namespace bitcraze {
 namespace crazyflieLinkCpp {
@@ -29,6 +30,19 @@ public :
     {
         static USBManager instance;
         return instance;
+    }
+
+    std::vector<std::string> udpList()const
+    {
+        std::vector<std::string> udps;
+        for (auto const& it : crazyfliesUdp_)
+        {
+            udps.push_back(it.first);
+        }
+        return udps;
+    }
+    size_t numCrazyfliesOverUdp() const {
+        return crazyfliesUdp_.size();
     }
 
     size_t numCrazyfliesOverUSB() const {
@@ -72,6 +86,9 @@ private :
     // devId -> thread
     std::map<size_t, CrazyradioThread> crazyradios_;
     size_t crazyradios_lastDevId_;
+
+    // udp ip->udp
+    std::map<std::string, CrazyfileUdpThread> crazyfliesUdp_;
 
     std::mutex mutex_;
 };

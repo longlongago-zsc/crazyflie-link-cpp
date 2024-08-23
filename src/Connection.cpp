@@ -23,7 +23,8 @@ Connection::Connection(const std::string &uri)
   // "radio://*/80/2M/*" -> broadcast/P2P sniffing on channel 80
   // "radiobroadcast://0/80/2M -> broadcast to all crazyflies on channel 80
 
-  const std::regex uri_regex("(usb:\\/\\/(\\d+)|radio:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M)\\/([a-fA-F0-9]+|\\*)(\\?[\\w=&]+)?)|(radiobroadcast:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M))");
+  const std::regex uri_regex("(usb:\\/\\/(\\d+)|radio:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M)\\/([a-fA-F0-9]+|\\*)(\\?[\\w=&]+)?)|(radiobroadcast:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M))|(udp:\\/\\/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))");
+  //const std::regex uri_regex("(usb:\\/\\/(\\d+)|radio:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M)\\/([a-fA-F0-9]+|\\*)(\\?[\\w=&]+)?)|(radiobroadcast:\\/\\/(\\d+|\\*)\\/(\\d+)\\/(250K|1M|2M))");
   std::smatch match;
   if (!std::regex_match(uri, match, uri_regex)) {
     std::stringstream sstr;
@@ -32,13 +33,22 @@ Connection::Connection(const std::string &uri)
   }
 
   impl_->uri_ = uri;
-
-  // for (size_t i = 0; i < match.size(); ++i) {
-  //   std::cout << i << " " << match[i].str() << std::endl;
-  // }
-  // std::cout << match.size() << std::endl;
-
-  if (match[2].matched) {
+ //  for (size_t i = 0; i < match.size(); ++i) {
+ //    std::cout << i << " " << match[i].str() << std::endl;
+ //  }
+ //  std::cout << match.size() << std::endl;
+  if (match[12].matched)
+  {
+      impl_->useSafelink_ = false;
+      impl_->useAutoPing_ = false;
+      impl_->useAckFilter_ = false;
+      impl_->broadcast_ = false;
+      impl_->isRadio_ = false;
+      impl_->isUdp_ = true;
+      impl_->devid_ = -1;
+      std::cout << impl_->uri_ << std::endl;
+  }
+  else if (match[2].matched) {
     // usb://
     impl_->devid_ = std::stoi(match[2].str());
 
@@ -142,7 +152,11 @@ Connection::~Connection()
 
 void Connection::close()
 {
-  if (impl_->devid_ >= 0) {
+    if (impl_->isUdp_)
+    {
+        USBManager::get().removeConnection(impl_);
+    }
+  else if (impl_->devid_ >= 0) {
     USBManager::get().removeConnection(impl_);
   }
 }
@@ -202,7 +216,11 @@ std::vector<std::string> Connection::scan(uint64_t address)
       }
     }
   }
-
+  // Crazyflies over UDP
+  if (USBManager::get().numCrazyfliesOverUdp() > 0) {
+      auto it = USBManager::get().udpList();
+      result.insert(result.begin(), it.begin(), it.end());
+  }
   return result;
 }
 
@@ -243,7 +261,7 @@ std::vector<std::string> Connection::scan_selected(const std::vector<std::string
       result.push_back(uri);
     }
   }
-
+  result.push_back("udp://192.168.43.42");
   return result;
 }
 
@@ -256,6 +274,7 @@ void Connection::send(const Packet& p)
 
   p.seq_ = impl_->statistics_.enqueued_count;
   impl_->queue_send_.push(p);
+  //__DEBUG__ << "queue_send_:" << impl_->queue_send_.size() << std::endl;
   ++impl_->statistics_.enqueued_count;
 }
 

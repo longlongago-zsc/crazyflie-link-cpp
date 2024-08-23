@@ -82,6 +82,7 @@ USBManager::~USBManager()
     // Fixes a crash where device gets destroyed before it gets unref'ed
     crazyradios_.clear();
     crazyfliesUSB_.clear();
+    crazyfliesUdp_.clear();
 
     // function returns void => no error checking
     libusb_exit(ctx_);
@@ -148,6 +149,18 @@ std::string USBManager::tryToQuerySerialNumber(libusb_device *dev, const libusb_
 
 void USBManager::updateDevices()
 {
+    //IP ip{ "192.168.43.42", 2390 };
+    crazyfliesUdp_.emplace(std::make_pair("udp://192.168.43.42", CrazyfileUdpThread(IP{"192.168.43.42", 2390})));
+    std::set<std::string> to_eraseUdp;
+    for (const auto& iter : crazyfliesUdp_) {
+        if (iter.second.hasError()) {
+            to_eraseUdp.insert(iter.first);
+        }
+    }
+    for (std::string devid : to_eraseUdp) {
+        crazyfliesUdp_.erase(devid);
+        std::cout << "rm " << devid << std::endl;
+    }
     // 1. Find all Crazyflies and Crazyradios connected over USB
 
     // b. discover devices
@@ -243,8 +256,12 @@ void USBManager::addConnection(std::shared_ptr<ConnectionImpl> connection)
 
     // ToDo: this is terrible for perf
     // updateDevices();
-
-    if (!connection->isRadio_) {
+    if (connection->isUdp_)
+    {
+        crazyfliesUdp_.at(connection->uri_).addConnection(connection);
+        return;
+    }
+    else if (!connection->isRadio_) {
         crazyfliesUSB_.at(connection->devid_).addConnection(connection);
         return;
     }
@@ -387,7 +404,11 @@ void USBManager::removeConnection(std::shared_ptr<ConnectionImpl> con)
 {
     const std::lock_guard<std::mutex> lk(mutex_);
     // std::cout << "rmCon " << con->uri_ << std::endl;
-    if (con->isRadio_) {
+    if (con->isUdp_)
+    {
+        crazyfliesUdp_.at(con->uri_).removeConnection(con);
+    }
+    else if (con->isRadio_) {
         crazyradios_.at(con->devid_).removeConnection(con);
     } else {
         crazyfliesUSB_.at(con->devid_).removeConnection(con);

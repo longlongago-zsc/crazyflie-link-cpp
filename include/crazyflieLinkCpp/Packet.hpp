@@ -17,6 +17,7 @@ namespace crazyflieLinkCpp {
 class Connection;
 class CrazyradioThread;
 class CrazyflieUSBThread;
+class CrazyfileUdpThread;
 
 class Packet
 {
@@ -25,6 +26,7 @@ class Packet
   friend class Connection;
   friend class CrazyradioThread;
   friend class CrazyflieUSBThread;
+  friend class CrazyfileUdpThread;
 
 public:
   Packet() 

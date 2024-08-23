@@ -1,5 +1,7 @@
 #pragma once
 
+#define __DEBUG__  std::cout /*<<__FILE__*/<< " " << __FUNCTION__<< " "<<__LINE__<< " "
+
 #include <string>
 #include <queue>
 #include <mutex>
@@ -33,6 +35,9 @@ public:
     bool safelinkDown_;
     bool safelinkUp_;
     bool broadcast_;
+
+    // udp related
+    bool isUdp_{ false };
 
     std::mutex queue_send_mutex_;
     std::priority_queue<Packet, std::vector<Packet>, std::greater<Packet>> queue_send_;
