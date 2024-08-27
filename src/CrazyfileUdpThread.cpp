@@ -4,6 +4,8 @@
 #include "ConnectionImpl.h"
 #include <boost/asio/io_context.hpp>
 
+#include "BoostUdpWrapper.h"
+
 namespace bitcraze {
 namespace crazyflieLinkCpp {
 
@@ -48,8 +50,38 @@ void CrazyfileUdpThread::runWithErrorHandler()
 void CrazyfileUdpThread::run()
 {
     __DEBUG__ << std::endl;
+#if 1
+    //调用//使用一个线程来调度io_server
+    ioService.Run(1);//定义UDPServer对象， 在对象内部实现数据收发
+    CUDPServer udpServerMgr; 
+    boost_ec ec = udpServerMgr.Start(ioService.GetIoService(), connection_, 2399);
+    if (ec)
+    {
+        std::stringstream sstr;
+        sstr << "start 192.168.43.43 error: " << ec.message();
+        __DEBUG__ << sstr.str() << std::endl;
+        throw std::runtime_error(sstr.str());
+    }
+
+    while (!thread_ending_)
+    {
+        std::this_thread::yield();
+        const std::lock_guard<std::mutex> lock(connection_->queue_send_mutex_);
+        if (!connection_->queue_send_.empty())
+        {
+            Packet p_send = connection_->queue_send_.top();
+            //__DEBUG__ << "send data:" << CrazyfileUdp::toHex(p_send.raw(), p_send.size()) << std::endl;
+            bool success = udpServerMgr.send(p_send.raw(), p_send.size());
+            if (success) {
+                ++connection_->statistics_.sent_count;
+                connection_->queue_send_.pop();
+            }
+        }
+    }
+
+#else
     boost::asio::io_context io;
-    CrazyfileUdp cf(io, ip_.ip_, ip_.port_);
+    CrazyfileUdp cf(io, connection_, ip_.ip_, ip_.port_);
     bool isSend = false;
 
     while (!thread_ending_)
@@ -61,7 +93,8 @@ void CrazyfileUdpThread::run()
             if (!connection_->queue_send_.empty())
             {
                 Packet p_send = connection_->queue_send_.top();
-                //__DEBUG__ << "send data:" << CrazyfileUdp::toHex(p_send.raw(), p_send.size()) << std::endl;;
+                __DEBUG__ << "send data:" << CrazyfileUdp::toHex(p_send.raw(), p_send.size()) << std::endl;;
+                cf.stopAsyncRecv();
                 bool success = cf.send(p_send.raw(), p_send.size());
                 if (success) {
                     ++connection_->statistics_.sent_count;
@@ -73,7 +106,10 @@ void CrazyfileUdpThread::run()
 
         if (isSend)
         {
-            Packet p_recv;
+            cf.startAsyncRecv();
+            __DEBUG__ << std::endl;
+            //cf.startAsyncRecv();
+            /*Packet p_recv;
             size_t size = cf.recv(p_recv.raw(), CRTP_MAXSIZE, 0);
             p_recv.setSize(size);
 
@@ -86,10 +122,15 @@ void CrazyfileUdpThread::run()
                 }
                 connection_->queue_recv_cv_.notify_one();
                 //__DEBUG__ << p_recv << std::endl;
-            }
+            }*/
             isSend = false;
         }
+        else
+        {
+            //__DEBUG__<<std::endl;
+        }
     }
+#endif
     __DEBUG__ << std::endl;
 }
 

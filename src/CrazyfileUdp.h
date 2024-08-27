@@ -24,6 +24,7 @@ class CrazyfileUdp
 {
 public:
 	explicit CrazyfileUdp(boost::asio::io_context& io, const std::string& ip = "192.168.43.42", uint16_t dstPort = 2390, uint16_t localPort = 2399);
+	explicit CrazyfileUdp(boost::asio::io_context& io, std::shared_ptr<ConnectionImpl> connection, const std::string& ip = "192.168.43.42", uint16_t dstPort = 2390, uint16_t localPort = 2399);
 	~CrazyfileUdp();
 	bool send(const uint8_t* data,uint32_t length);
 	size_t recv(uint8_t* buffer, size_t max_length, unsigned int timeout);
@@ -37,7 +38,13 @@ public:
 
 	void keepLive();
 
+	void startAsyncRecv();
+	void stopAsyncRecv();
+	void handleAsyncReceive(const boost::system::error_code& error,
+		std::size_t bytes_transferred);
+
 private:
+	boost::asio::io_context* io_;
 	std::string ip_{ "192.168.43.42" };
 	udp::resolver resolver_;
 	uint16_t dstPort_{ 2390 };
@@ -47,6 +54,8 @@ private:
 	udp::socket socket_;
 	uint8_t channel_;
 	int keepLive_{ 0 };
+	unsigned char recv_buffer_[1024];
+	std::shared_ptr<ConnectionImpl> connection_;
 };
 }
 }

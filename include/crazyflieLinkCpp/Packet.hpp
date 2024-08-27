@@ -15,18 +15,17 @@ namespace crazyflieLinkCpp {
 #define CRTP_MAXSIZE 32
 
 class Connection;
-class CrazyradioThread;
-class CrazyflieUSBThread;
 class CrazyfileUdpThread;
+class CUDPServer;
 
 class Packet
 {
 // private:
   // constexpr size_t CRTP_MAXSIZE() { return 31; }
   friend class Connection;
-  friend class CrazyradioThread;
-  friend class CrazyflieUSBThread;
   friend class CrazyfileUdpThread;
+  friend class CrazyfileUdp;
+  friend class CUDPServer;
 
 public:
   Packet() 
